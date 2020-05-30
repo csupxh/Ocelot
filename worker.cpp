@@ -398,6 +398,8 @@ std::string worker::announce(const std::string &input, torrent &tor, user_ptr &u
 	} else {
 		int64_t uploaded_change = 0;
 		int64_t downloaded_change = 0;
+		int64_t free_torrent_uploaded_change = 0;
+		int64_t free_torrent_downloaded_change = 0;
 		int64_t corrupt_change = 0;
 		p->announces++;
 
@@ -428,6 +430,8 @@ std::string worker::announce(const std::string &input, torrent &tor, user_ptr &u
 			}
 			auto sit = tor.tokened_users.find(userid);
 			if (tor.free_torrent == NEUTRAL) {
+				free_torrent_downloaded_change = downloaded_change;
+				free_torrent_uploaded_change = uploaded_change;
 				downloaded_change = 0;
 				uploaded_change = 0;
 			} else if (tor.free_torrent == FREE || sit != tor.tokened_users.end()) {
@@ -438,6 +442,8 @@ std::string worker::announce(const std::string &input, torrent &tor, user_ptr &u
 					std::string record_str = record.str();
 					db->record_token(record_str);
 				}
+				free_torrent_downloaded_change = downloaded_change;
+				free_torrent_uploaded_change = uploaded_change;
 				downloaded_change = 0;
 			}
 
@@ -446,6 +452,12 @@ std::string worker::announce(const std::string &input, torrent &tor, user_ptr &u
 				record << '(' << userid << ',' << uploaded_change << ',' << downloaded_change << ')';
 				std::string record_str = record.str();
 				db->record_user(record_str);
+			}
+			if (free_torrent_uploaded_change || free_torrent_downloaded_change) {
+				std::stringstream record;
+				record << '(' << userid << ',' << tor.id << ",\'" << tor.free_torrent << "\',NOW()," << free_torrent_uploaded_change << ',' << free_torrent_downloaded_change << ')';
+				std::string record_str = record.str();
+				db->record_free_torrent(record_str);
 			}
 		}
 	}
