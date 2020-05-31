@@ -429,19 +429,21 @@ std::string worker::announce(const std::string &input, torrent &tor, user_ptr &u
 				downspeed = downloaded_change / (cur_time - p->last_announced);
 			}
 			auto sit = tor.tokened_users.find(userid);
-			if (tor.free_torrent == NEUTRAL) {
+			if (sit != tor.tokened_users.end()) {
+				expire_token = true;
+				std::stringstream record;
+				record << '(' << userid << ',' << tor.id << ',' << downloaded_change << ')';
+				std::string record_str = record.str();
+				db->record_token(record_str);
+
+				downloaded_change = 0;
+			}
+			else if (tor.free_torrent == NEUTRAL) {
 				free_torrent_downloaded_change = downloaded_change;
 				free_torrent_uploaded_change = uploaded_change;
 				downloaded_change = 0;
 				uploaded_change = 0;
-			} else if (tor.free_torrent == FREE || sit != tor.tokened_users.end()) {
-				if (sit != tor.tokened_users.end()) {
-					expire_token = true;
-					std::stringstream record;
-					record << '(' << userid << ',' << tor.id << ',' << downloaded_change << ')';
-					std::string record_str = record.str();
-					db->record_token(record_str);
-				}
+			} else if (tor.free_torrent == FREE) {
 				free_torrent_downloaded_change = downloaded_change;
 				free_torrent_uploaded_change = uploaded_change;
 				downloaded_change = 0;
